@@ -407,6 +407,180 @@ def RunAlgorithmTests():
     print("="*60 + "\n")
 
 
+def InteractiveTest():
+    """
+    交互式测试函数，从控制台接收数据并测试各个算法
+    传入值: 无
+    返回值: NULL
+    """
+    print("\n" + "="*60)
+    print("算法交互式测试系统")
+    print("="*60 + "\n")
+    
+    # 从控制台接收测试数据
+    print("请输入要测试的数据:")
+    test_data = input("> ")
+    
+    if not test_data:
+        print("错误: 输入数据不能为空")
+        return
+    
+    print(f"\n正在使用数据 '{test_data}' 进行算法测试...\n")
+    print("-" * 60)
+    
+    # 测试结果列表
+    test_results = []
+    
+    # 测试MD5算法
+    print("\n【1】测试MD5算法...")
+    try:
+        md5_result = CalculateMd5(test_data)
+        if md5_result:
+            print(f"MD5算法，结果为OK")
+            print(f"  哈希值: {md5_result}")
+            test_results.append(("MD5算法", "OK"))
+        else:
+            print(f"MD5算法，结果为ERROR")
+            test_results.append(("MD5算法", "ERROR"))
+    except Exception as e:
+        print(f"MD5算法，结果为ERROR")
+        print(f"  错误信息: {e}")
+        test_results.append(("MD5算法", "ERROR"))
+    
+    # 测试SHA1算法
+    print("\n【2】测试SHA1算法...")
+    try:
+        sha1_result = CalculateSha1(test_data)
+        if sha1_result:
+            print(f"SHA1算法，结果为OK")
+            print(f"  哈希值: {sha1_result}")
+            test_results.append(("SHA1算法", "OK"))
+        else:
+            print(f"SHA1算法，结果为ERROR")
+            test_results.append(("SHA1算法", "ERROR"))
+    except Exception as e:
+        print(f"SHA1算法，结果为ERROR")
+        print(f"  错误信息: {e}")
+        test_results.append(("SHA1算法", "ERROR"))
+    
+    # 测试PKCS#7填充算法
+    print("\n【3】测试PKCS#7填充算法...")
+    try:
+        padded = Pkcs7Padding(test_data)
+        if padded:
+            unpadded = Pkcs7Unpadding(padded)
+            if unpadded and unpadded.decode('utf-8') == test_data:
+                print(f"PKCS#7填充算法，结果为OK")
+                print(f"  原始长度: {len(test_data)}字节")
+                print(f"  填充后长度: {len(padded)}字节")
+                test_results.append(("PKCS#7填充算法", "OK"))
+            else:
+                print(f"PKCS#7填充算法，结果为ERROR")
+                test_results.append(("PKCS#7填充算法", "ERROR"))
+        else:
+            print(f"PKCS#7填充算法，结果为ERROR")
+            test_results.append(("PKCS#7填充算法", "ERROR"))
+    except Exception as e:
+        print(f"PKCS#7填充算法，结果为ERROR")
+        print(f"  错误信息: {e}")
+        test_results.append(("PKCS#7填充算法", "ERROR"))
+    
+    # 测试RSA加密解密算法
+    print("\n【4】测试RSA加密解密算法...")
+    print("  正在生成RSA密钥对...")
+    try:
+        public_key, private_key = GenerateRsaKeyPair()
+        
+        if public_key and private_key:
+            print("  密钥生成成功，正在加密...")
+            
+            # 根据数据长度选择加密方式
+            if len(test_data) < 100:
+                encrypted = RsaEncrypt(test_data, public_key)
+            else:
+                encrypted = RsaEncryptLongData(test_data, public_key)
+            
+            if encrypted:
+                print("  加密成功，正在解密...")
+                
+                # 解密
+                if len(test_data) < 100:
+                    decrypted = RsaDecrypt(encrypted, private_key)
+                else:
+                    decrypted = RsaDecryptLongData(encrypted, private_key)
+                
+                if decrypted == test_data:
+                    print(f"RSA加密解密算法，结果为OK")
+                    print(f"  加密后长度: {len(encrypted)}字节")
+                    print(f"  解密验证: 成功")
+                    test_results.append(("RSA加密解密算法", "OK"))
+                else:
+                    print(f"RSA加密解密算法，结果为ERROR")
+                    print(f"  错误: 解密数据与原始数据不匹配")
+                    test_results.append(("RSA加密解密算法", "ERROR"))
+            else:
+                print(f"RSA加密解密算法，结果为ERROR")
+                print(f"  错误: 加密失败")
+                test_results.append(("RSA加密解密算法", "ERROR"))
+        else:
+            print(f"RSA加密解密算法，结果为ERROR")
+            print(f"  错误: 密钥生成失败")
+            test_results.append(("RSA加密解密算法", "ERROR"))
+    except Exception as e:
+        print(f"RSA加密解密算法，结果为ERROR")
+        print(f"  错误信息: {e}")
+        test_results.append(("RSA加密解密算法", "ERROR"))
+    
+    # 打印测试汇总
+    print("\n" + "="*60)
+    print("测试结果汇总")
+    print("="*60)
+    for algorithm, result in test_results:
+        print(f"{algorithm}，结果为{result}")
+    
+    # 统计成功率
+    success_count = sum(1 for _, result in test_results if result == "OK")
+    total_count = len(test_results)
+    print(f"\n总计: {success_count}/{total_count} 通过")
+    print("="*60 + "\n")
+
+
+def RunTestMenu():
+    """
+    运行测试菜单，提供选择测试模式
+    传入值: 无
+    返回值: NULL
+    """
+    print("\n" + "="*60)
+    print("算法测试系统")
+    print("="*60)
+    print("\n请选择测试模式:")
+    print("1. 自动测试（使用预设数据）")
+    print("2. 交互式测试（从控制台输入数据）")
+    print("3. 退出")
+    print("\n" + "-"*60)
+    
+    choice = input("请输入选项 (1/2/3): ").strip()
+    
+    if choice == '1':
+        RunAlgorithmTests()
+    elif choice == '2':
+        InteractiveTest()
+        # 询问是否继续测试
+        while True:
+            print("\n是否继续测试? (y/n)")
+            continue_test = input("> ").strip().lower()
+            if continue_test == 'y':
+                InteractiveTest()
+            else:
+                print("测试结束")
+                break
+    elif choice == '3':
+        print("退出测试系统")
+    else:
+        print("无效的选项，请重新运行程序")
+
+
 if __name__ == '__main__':
-    # 运行测试
-    RunAlgorithmTests()
+    # 运行测试菜单
+    RunTestMenu()

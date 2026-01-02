@@ -150,3 +150,60 @@ def RsaDecrypt(pre_data, key_path="key.txt"):
     except Exception as e:
         print(f"Unpadding error: {e}")
         return None
+
+def TestAlgorithm():
+    """
+    功能: 测试算法模块
+    """
+    print("请输入测试数据:")
+    try:
+        # 在非交互式环境中可能需要处理
+        import sys
+        if sys.stdin.isatty():
+            raw_data = input()
+        else:
+            raw_data = "test_data"
+            print(f"(自动输入): {raw_data}")
+    except EOFError:
+        raw_data = "test_data"
+
+    if not raw_data:
+        raw_data = "test_data"
+    
+    # MD5 Test
+    try:
+        md5_res = Md5Hash(raw_data)
+        if md5_res:
+            print("MD5算法，结果为OK")
+        else:
+            print("MD5算法，结果为ERROR")
+    except Exception:
+        print("MD5算法，结果为ERROR")
+
+    # SHA1 Test
+    try:
+        sha1_res = Sha1Hash(raw_data)
+        if sha1_res:
+            print("SHA1算法，结果为OK")
+        else:
+            print("SHA1算法，结果为ERROR")
+    except Exception:
+        print("SHA1算法，结果为ERROR")
+
+    # RSA Test
+    try:
+        enc_res = RsaEncrypt(raw_data)
+        if enc_res:
+            dec_res = RsaDecrypt(enc_res)
+            # 解密出来的是 bytes，需要 decode 比较
+            if dec_res and dec_res.decode('utf-8') == raw_data:
+                print("RSA加密以及解密算法，结果为OK")
+            else:
+                print("RSA加密以及解密算法，结果为ERROR")
+        else:
+            print("RSA加密以及解密算法，结果为ERROR")
+    except Exception as e:
+        print(f"RSA加密以及解密算法，结果为ERROR")
+
+if __name__ == "__main__":
+    TestAlgorithm()

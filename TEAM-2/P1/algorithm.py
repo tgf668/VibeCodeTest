@@ -295,3 +295,153 @@ def RsaVerify(pre_data, pre_signature, pre_public_key):
     except Exception as e:
         print(f"RSA验证失败: {e}")
         return False
+
+
+# ==================== 测试函数 ====================
+
+def TestMd5Algorithm(pre_data):
+    """
+    传入值: pre_data - 待测试的数据 (str)
+    返回值: str - 测试结果 "OK" 或 "ERROR"
+    """
+    try:
+        ret_hash = CalculateMd5(pre_data)
+        if ret_hash and len(ret_hash) == 32:
+            return "OK"
+        else:
+            return "ERROR"
+    except Exception:
+        return "ERROR"
+
+
+def TestSha1Algorithm(pre_data):
+    """
+    传入值: pre_data - 待测试的数据 (str)
+    返回值: str - 测试结果 "OK" 或 "ERROR"
+    """
+    try:
+        ret_hash = CalculateSha1(pre_data)
+        if ret_hash and len(ret_hash) == 40:
+            return "OK"
+        else:
+            return "ERROR"
+    except Exception:
+        return "ERROR"
+
+
+def TestRsaAlgorithm(pre_data):
+    """
+    传入值: pre_data - 待测试的数据 (str)
+    返回值: str - 测试结果 "OK" 或 "ERROR"
+    """
+    try:
+        # 生成密钥对
+        ret_private_key, ret_public_key = GenerateRsaKeyPair(2048)
+        
+        # 测试加密解密
+        ret_encrypted = RsaEncrypt(pre_data, ret_public_key)
+        if ret_encrypted is None:
+            return "ERROR"
+        
+        ret_decrypted = RsaDecrypt(ret_encrypted, ret_private_key)
+        if ret_decrypted != pre_data:
+            return "ERROR"
+        
+        return "OK"
+    except Exception:
+        return "ERROR"
+
+
+def TestAesAlgorithm(pre_data):
+    """
+    传入值: pre_data - 待测试的数据 (str)
+    返回值: str - 测试结果 "OK" 或 "ERROR"
+    """
+    try:
+        # 生成16字节密钥
+        pre_key = "1234567890123456"
+        
+        # 测试加密解密
+        ret_encrypted = AesEncryptEcb(pre_data, pre_key)
+        if ret_encrypted is None:
+            return "ERROR"
+        
+        ret_decrypted = AesDecryptEcb(ret_encrypted, pre_key)
+        if ret_decrypted != pre_data:
+            return "ERROR"
+        
+        return "OK"
+    except Exception:
+        return "ERROR"
+
+
+def TestRsaSignature(pre_data):
+    """
+    传入值: pre_data - 待测试的数据 (str)
+    返回值: str - 测试结果 "OK" 或 "ERROR"
+    """
+    try:
+        # 生成密钥对
+        ret_private_key, ret_public_key = GenerateRsaKeyPair(2048)
+        
+        # 测试签名验证
+        ret_signature = RsaSign(pre_data, ret_private_key)
+        if ret_signature is None:
+            return "ERROR"
+        
+        is_valid = RsaVerify(pre_data, ret_signature, ret_public_key)
+        if not is_valid:
+            return "ERROR"
+        
+        return "OK"
+    except Exception:
+        return "ERROR"
+
+
+def RunAllTests():
+    """
+    传入值: NULL
+    返回值: NULL
+    从控制台接收数据并测试所有算法
+    """
+    print("=" * 50)
+    print("算法模块测试")
+    print("=" * 50)
+    
+    pre_data = input("请输入测试数据: ")
+    
+    if not pre_data:
+        print("错误: 输入数据不能为空")
+        return
+    
+    print("\n测试结果:")
+    print("-" * 30)
+    
+    # 测试MD5算法
+    ret_md5 = TestMd5Algorithm(pre_data)
+    print(f"MD5算法，结果为{ret_md5}")
+    
+    # 测试SHA1算法
+    ret_sha1 = TestSha1Algorithm(pre_data)
+    print(f"SHA1算法，结果为{ret_sha1}")
+    
+    # 测试RSA加密解密算法
+    ret_rsa = TestRsaAlgorithm(pre_data)
+    print(f"RSA加密解密算法，结果为{ret_rsa}")
+    
+    # 测试AES加密解密算法
+    ret_aes = TestAesAlgorithm(pre_data)
+    print(f"AES加密解密算法，结果为{ret_aes}")
+    
+    # 测试RSA签名验证算法
+    ret_sign = TestRsaSignature(pre_data)
+    print(f"RSA签名验证算法，结果为{ret_sign}")
+    
+    print("-" * 30)
+    print("测试完成")
+
+
+# ==================== 主程序入口 ====================
+
+if __name__ == "__main__":
+    RunAllTests()

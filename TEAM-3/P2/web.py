@@ -3,7 +3,7 @@ Web通信模块 - 处理远程数据接收
 遵循OWASP安全规范，防止XSS、CSRF等攻击
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template_string
 from werkzeug.security import safe_join
 import os
 import json
@@ -184,6 +184,356 @@ def LoginEndpoint():
     }), 200
 
 
+@app.route('/')
+def TestLoginPage():
+    """
+    测试登录页面 - 显示登录表单
+    传入值：None
+    返回值：HTML页面
+    """
+    # HTML模板，包含登录表单和Cookie获取功能
+    # 使用Jinja2自动转义防止XSS攻击 (CWE-79)
+    html_template = '''
+    <!DOCTYPE html>
+    <html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>登录测试页面</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                font-family: 'Microsoft YaHei', Arial, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                padding: 20px;
+            }
+            .login-container {
+                background: white;
+                border-radius: 10px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                padding: 40px;
+                width: 100%;
+                max-width: 450px;
+            }
+            h1 {
+                color: #333;
+                text-align: center;
+                margin-bottom: 30px;
+                font-size: 28px;
+            }
+            .form-group {
+                margin-bottom: 20px;
+            }
+            label {
+                display: block;
+                color: #555;
+                font-weight: bold;
+                margin-bottom: 8px;
+                font-size: 14px;
+            }
+            input[type="text"], input[type="password"] {
+                width: 100%;
+                padding: 12px 15px;
+                border: 2px solid #e0e0e0;
+                border-radius: 5px;
+                font-size: 14px;
+                transition: border-color 0.3s;
+            }
+            input[type="text"]:focus, input[type="password"]:focus {
+                outline: none;
+                border-color: #667eea;
+            }
+            .info-text {
+                font-size: 12px;
+                color: #888;
+                margin-top: 5px;
+            }
+            .cookie-info {
+                background: #f5f5f5;
+                padding: 10px;
+                border-radius: 5px;
+                font-size: 12px;
+                color: #666;
+                margin-bottom: 20px;
+                word-break: break-all;
+            }
+            button {
+                width: 100%;
+                padding: 14px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                border-radius: 5px;
+                font-size: 16px;
+                font-weight: bold;
+                cursor: pointer;
+                transition: transform 0.2s;
+            }
+            button:hover {
+                transform: translateY(-2px);
+            }
+            button:active {
+                transform: translateY(0);
+            }
+            .result {
+                margin-top: 20px;
+                padding: 15px;
+                border-radius: 5px;
+                display: none;
+            }
+            .result.success {
+                background: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+            .result.error {
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+            .test-info {
+                background: #fff3cd;
+                color: #856404;
+                padding: 15px;
+                border-radius: 5px;
+                margin-bottom: 20px;
+                font-size: 13px;
+                border: 1px solid #ffeaa7;
+            }
+            .test-info strong { display: block; margin-bottom: 5px; }
+        </style>
+    </head>
+    <body>
+        <div class="login-container">
+            <h1>🔐 登录验证测试</h1>
+            
+            <div class="test-info">
+                <strong>📋 测试规则说明：</strong>
+                • 用户名：不超过8位<br>
+                • 密码：大于6位且不超过12位<br>
+                • Cookie：必须包含"flag"标签
+            </div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" 
+                           placeholder="请输入用户名（不超过8位）" required>
+                    <div class="info-text">当前长度：<span id="usernameLength">0</span>/8</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" 
+                           placeholder="请输入密码（7-12位）" required>
+                    <div class="info-text">当前长度：<span id="passwordLength">0</span> (需要7-12位)</div>
+                </div>
+                
+                <div class="form-group">
+                    <label>浏览器Cookie</label>
+                    <div class="cookie-info" id="cookieInfo">正在读取Cookie...</div>
+                </div>
+                
+                <button type="submit">🚀 提交测试</button>
+            </form>
+            
+            <div id="result" class="result"></div>
+        </div>
+        
+        <script>
+            // 获取并显示浏览器Cookie
+            function getCookie() {
+                const cookies = document.cookie;
+                const cookieInfo = document.getElementById('cookieInfo');
+                
+                if (cookies) {
+                    cookieInfo.textContent = '当前Cookie: ' + cookies;
+                } else {
+                    // 如果没有Cookie，设置一个测试Cookie（包含flag）
+                    document.cookie = "test_flag=test_value; path=/";
+                    cookieInfo.textContent = '当前Cookie: test_flag=test_value (已自动设置测试Cookie)';
+                }
+                
+                return cookies || 'test_flag=test_value';
+            }
+            
+            // 实时更新输入长度
+            document.getElementById('username').addEventListener('input', function(e) {
+                document.getElementById('usernameLength').textContent = e.target.value.length;
+            });
+            
+            document.getElementById('password').addEventListener('input', function(e) {
+                document.getElementById('passwordLength').textContent = e.target.value.length;
+            });
+            
+            // 页面加载时获取Cookie
+            window.onload = function() {
+                getCookie();
+            };
+            
+            // 表单提交处理
+            document.getElementById('loginForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const cookie = getCookie();
+                const resultDiv = document.getElementById('result');
+                
+                // 发送登录请求
+                try {
+                    const response = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            username: username,
+                            password: password,
+                            cookie: cookie
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    // 显示结果
+                    resultDiv.style.display = 'block';
+                    if (data.ret_status === 'OK') {
+                        resultDiv.className = 'result success';
+                        resultDiv.innerHTML = '<strong>✅ 验证成功！</strong><br>' + 
+                                            '消息：' + data.ret_message;
+                    } else {
+                        resultDiv.className = 'result error';
+                        resultDiv.innerHTML = '<strong>❌ 验证失败！</strong><br>' + 
+                                            '错误：' + data.ret_message;
+                    }
+                } catch (error) {
+                    resultDiv.style.display = 'block';
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = '<strong>❌ 请求失败！</strong><br>' + 
+                                        '错误：' + error.message;
+                }
+            });
+        </script>
+    </body>
+    </html>
+    '''
+    
+    return render_template_string(html_template)
+
+
+def RunTestUnit():
+    """
+    运行测试单元 - 测试验证功能
+    传入值：None
+    返回值：None（打印测试结果）
+    """
+    print("\n" + "="*60)
+    print("开始运行测试单元".center(60))
+    print("="*60 + "\n")
+    
+    # 测试用例列表
+    test_cases = [
+        {
+            'name': '测试1：正常登录（所有条件满足）',
+            'username': 'admin',
+            'password': '1234567',
+            'cookie': 'session_id=abc123; flag=true; user=test',
+            'expected': 'OK'
+        },
+        {
+            'name': '测试2：用户名超过8位',
+            'username': 'admin12345',
+            'password': '1234567',
+            'cookie': 'session_id=abc123; flag=true',
+            'expected': 'ERR'
+        },
+        {
+            'name': '测试3：密码少于7位',
+            'username': 'admin',
+            'password': '123456',
+            'cookie': 'session_id=abc123; flag=true',
+            'expected': 'ERR'
+        },
+        {
+            'name': '测试4：密码超过12位',
+            'username': 'admin',
+            'password': '1234567890123',
+            'cookie': 'session_id=abc123; flag=true',
+            'expected': 'ERR'
+        },
+        {
+            'name': '测试5：Cookie中没有flag标签',
+            'username': 'admin',
+            'password': '1234567',
+            'cookie': 'session_id=abc123; user=test',
+            'expected': 'ERR'
+        },
+        {
+            'name': '测试6：边界测试-用户名8位',
+            'username': 'admin123',
+            'password': '1234567',
+            'cookie': 'flag=1',
+            'expected': 'OK'
+        },
+        {
+            'name': '测试7：边界测试-密码7位',
+            'username': 'admin',
+            'password': '1234567',
+            'cookie': 'flag=1',
+            'expected': 'OK'
+        },
+        {
+            'name': '测试8：边界测试-密码12位',
+            'username': 'admin',
+            'password': '123456789012',
+            'cookie': 'flag=1',
+            'expected': 'OK'
+        }
+    ]
+    
+    passed_count = 0
+    failed_count = 0
+    
+    # 执行每个测试用例
+    for i, test_case in enumerate(test_cases, 1):
+        print(f"[测试 {i}/{len(test_cases)}] {test_case['name']}")
+        print(f"  用户名: {test_case['username']} (长度: {len(test_case['username'])})")
+        print(f"  密码: {'*' * len(test_case['password'])} (长度: {len(test_case['password'])})")
+        print(f"  Cookie: {test_case['cookie']}")
+        
+        # 调用验证函数
+        result = ValidateLoginData(
+            test_case['username'],
+            test_case['password'],
+            test_case['cookie']
+        )
+        
+        # 检查结果
+        if result['ret_status'] == test_case['expected']:
+            print(f"  结果: ✅ 通过")
+            if result['ret_status'] == 'ERR':
+                print(f"  错误消息: {result['ret_message']}")
+            passed_count += 1
+        else:
+            print(f"  结果: ❌ 失败")
+            print(f"  期望: {test_case['expected']}, 实际: {result['ret_status']}")
+            if result['ret_status'] == 'ERR':
+                print(f"  错误消息: {result['ret_message']}")
+            failed_count += 1
+        
+        print()
+    
+    # 打印测试总结
+    print("="*60)
+    print(f"测试完成！总计: {len(test_cases)} | 通过: {passed_count} | 失败: {failed_count}")
+    print("="*60 + "\n")
+
+
 def StartServer():
     """
     启动Flask服务器
@@ -201,8 +551,13 @@ def StartServer():
 
 
 if __name__ == '__main__':
+    # 运行测试单元
+    RunTestUnit()
+    
     # 开发环境启动说明
     print("Web通信模块启动中...")
     print("监听来自192.114.514的登录请求")
     print("API端点: POST /api/login")
+    print("测试页面: http://localhost:5000/")
+    print("\n请在浏览器中打开 http://localhost:5000/ 进行测试\n")
     StartServer()

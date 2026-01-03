@@ -8,6 +8,8 @@ Web 通信模块
 
 from flask import Flask, request, jsonify, render_template_string, make_response
 import json
+import re
+import html
 
 app = Flask(__name__)
 
@@ -18,6 +20,28 @@ SERVER_PORT = 5000
 # 本地测试配置
 TEST_HOST = '127.0.0.1'
 TEST_PORT = 5000
+
+
+def SanitizeInput(input_str, max_length=256):
+    """
+    传入值: input_str (str) - 需要清洗的字符串, max_length (int) - 最大长度
+    返回值: str - 清洗后的字符串
+    
+    功能: 清洗输入数据，防止XSS和注入攻击
+    """
+    if not input_str:
+        return ""
+    
+    # 限制长度
+    input_str = input_str[:max_length]
+    
+    # HTML转义防止XSS
+    input_str = html.escape(input_str)
+    
+    # 移除危险字符
+    input_str = re.sub(r'[<>"\'\\/;]', '', input_str)
+    
+    return input_str
 
 
 def ReceiveLoginData():
@@ -31,10 +55,34 @@ def ReceiveLoginData():
         # 从请求中获取JSON数据
         data = request.get_json()
         
-        # 提取前端传入的数据
-        pre_user_name = data.get('username', '')
-        pre_user_psw = data.get('password', '')
-        pre_cookie = data.get('cookie', '')
+        if not data:
+            print("错误：没有接收到数据")
+            return None
+        
+        # 提取并清洗前端传入的数据
+        pre_user_name = SanitizeInput(data.get('username', ''), max_length=50)
+        pre_user_psw = data.get('password', '')  # 密码不清洗，保持原样用于验证
+        pre_cookie = SanitizeInput(data.get('cookie', ''), max_length=500)
+        
+        # 验证必要字段
+        if not pre_user_name or not pre_user_psw:
+            print("错误：用户名或密码为空")
+            return None
+        
+        # 将数据写入全局交换文件
+        share_data = {
+            'pre_user_name': pre_user_name,
+            'pre_user_psw': pre_user_psw,
+            'pre_cookie': pre_cookie
+        }
+        
+        WriteToShareFile(share_data)
+        
+        return share_data
+    
+    except Exception as e:
+        print(f"接收数据时发生错误: {e}")
+        return None
         
         # 将数据写入全局交换文件
         share_data = {
@@ -90,15 +138,15 @@ def ValidateLoginData(pre_user_name, pre_user_psw, pre_cookie):
     
     功能: 验证登录数据的合法性
          - 用户名长度不超过8位
-         - 密码长度大于6位但不超过12位
+         - 密码长度大于6位但不超过12位 (7-12位)
          - cookie中必须包含flag标签
     """
     # 验证用户名长度
-    if len(pre_user_name) > 8:
+    if len(pre_user_name) == 0 or len(pre_user_name) > 8:
         return False, "长度违法"
     
-    # 验证密码长度
-    if len(pre_user_psw) <= 6 or len(pre_user_psw) > 12:
+    # 验证密码长度（7-12位）
+    if len(pre_user_psw) < 7 or len(pre_user_psw) > 12:
         return False, "长度违法"
     
     # 验证cookie中是否包含flag标签

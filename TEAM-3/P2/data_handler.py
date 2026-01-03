@@ -7,6 +7,7 @@ import sys
 import json
 from datetime import datetime
 import os
+import re
 
 # 尝试导入openpyxl库，如果不存在则使用备用方案
 try:
@@ -22,12 +23,60 @@ DATA_FILE_XLSX = 'DATA.xlsx'
 DATA_FILE_JSON = 'DATA.json'  # 备用JSON存储
 
 
+def ValidateUsername(username):
+    """
+    验证用户名的合法性 - 修复CWE-20: 输入验证
+    传入值：username (str) - 用户名
+    返回值：bool - 合法返回True
+    """
+    if not username or not isinstance(username, str):
+        return False
+    
+    # 限制用户名长度和字符
+    if len(username) > 100:
+        return False
+    
+    # 只允许字母、数字、下划线
+    if not re.match(r'^[a-zA-Z0-9_]+$', username):
+        return False
+    
+    return True
+
+
+def ValidateIpAddress(ip_address):
+    """
+    验证IP地址的合法性 - 修复CWE-20: 输入验证
+    传入值：ip_address (str) - IP地址
+    返回值：bool - 合法返回True
+    """
+    if not ip_address or not isinstance(ip_address, str):
+        return False
+    
+    # 验证IPv4地址格式
+    ipv4_pattern = r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
+    if not re.match(ipv4_pattern, ip_address):
+        return False
+    
+    # 验证每个八位组在0-255范围内
+    parts = ip_address.split('.')
+    for part in parts:
+        if int(part) > 255:
+            return False
+    
+    return True
+
+
 def ReadUserData(username):
     """
     从数据文件中读取用户数据
     传入值：username (str) - 用户名
     返回值：dict - 用户数据（包含password_md5等），未找到返回None
     """
+    # 修复CWE-20: 输入验证
+    if not ValidateUsername(username):
+        print(f"错误: 无效的用户名: {username}", file=sys.stderr)
+        return None
+    
     if EXCEL_AVAILABLE and os.path.exists(DATA_FILE_XLSX):
         return ReadUserDataFromExcel(username)
     else:
@@ -101,6 +150,15 @@ def UpdateUserLoginInfo(username, login_ip):
             login_ip (str) - 登录IP地址
     返回值：bool - 成功返回True，失败返回False
     """
+    # 修复CWE-20: 输入验证
+    if not ValidateUsername(username):
+        print(f"错误: 无效的用户名: {username}", file=sys.stderr)
+        return False
+    
+    if not ValidateIpAddress(login_ip):
+        print(f"错误: 无效的IP地址: {login_ip}", file=sys.stderr)
+        return False
+    
     if EXCEL_AVAILABLE and os.path.exists(DATA_FILE_XLSX):
         return UpdateUserLoginInfoInExcel(username, login_ip)
     else:

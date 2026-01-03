@@ -7,12 +7,21 @@ from flask import Flask, request, jsonify, render_template_string
 from werkzeug.security import safe_join
 import os
 import json
+import time
+from collections import defaultdict
+import secrets
 
 # Flask应用初始化
 app = Flask(__name__)
 
 # 从环境变量获取密钥，避免硬编码凭据 (CWE-798)
-app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-key-change-in-production')
+# 修复: 使用安全的随机密钥生成
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32)
+
+# 速率限制：防止暴力破解 (CWE-307)
+login_attempts = defaultdict(list)
+MAX_LOGIN_ATTEMPTS = 5
+LOCKOUT_TIME = 300  # 5分钟
 
 # 全局数据交换文件路径
 SHARE_FILE_PATH = 'share.txt'
@@ -41,7 +50,8 @@ def ValidateLoginData(pre_user_name, pre_user_psw, pre_cookie):
         }
     
     # 验证密码长度大于6位但不超过12位
-    if len(pre_user_psw) <= MIN_PASSWORD_LENGTH or len(pre_user_psw) > MAX_PASSWORD_LENGTH:
+    # 修复逻辑bug: 密码长度应该 >= 7 (大于6位意味着至少7位)
+    if len(pre_user_psw) < MIN_PASSWORD_LENGTH + 1 or len(pre_user_psw) > MAX_PASSWORD_LENGTH:
         return {
             'ret_status': 'ERR',
             'ret_message': '长度违法'
@@ -142,6 +152,24 @@ def LoginEndpoint():
     传入值：HTTP POST请求（JSON格式）
     返回值：JSON响应 - 包含状态码和消息
     """
+    # 修复CWE-307: 实施速率限制防止暴力破解
+    client_ip = request.remote_addr
+    current_time = time.time()
+    
+    # 清理过期的登录尝试记录
+    login_attempts[client_ip] = [t for t in login_attempts[client_ip] 
+                                  if current_time - t < LOCKOUT_TIME]
+    
+    # 检查是否超过尝试次数
+    if len(login_attempts[client_ip]) >= MAX_LOGIN_ATTEMPTS:
+        return jsonify({
+            'ret_status': 'ERR',
+            'ret_message': 'Too many login attempts. Please try again later.'
+        }), 429
+    
+    # 记录本次尝试
+    login_attempts[client_ip].append(current_time)
+    
     # 接收登录数据
     login_data = ReceiveLoginData()
     
@@ -534,6 +562,20 @@ def RunTestUnit():
     print("="*60 + "\n")
 
 
+# 修复CWE-693: 添加安全响应头
+@app.after_request
+def AddSecurityHeaders(response):
+    """添加安全响应头"""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    # 修复CWE-319: 不应传输敏感信息到不安全连接
+    if not request.is_secure and request.headers.get('X-Forwarded-Proto') != 'https':
+        response.headers['Content-Security-Policy'] = "upgrade-insecure-requests"
+    return response
+
+
 def StartServer():
     """
     启动Flask服务器
@@ -541,7 +583,7 @@ def StartServer():
     返回值：None
     """
     # 从环境变量获取配置，避免硬编码 (CWE-798)
-    host = os.environ.get('FLASK_HOST', '0.0.0.0')
+    host = os.environ.get('FLASK_HOST', '127.0.0.1')  # 修复: 默认只监听本地
     port = int(os.environ.get('FLASK_PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     

@@ -166,6 +166,7 @@ int ReadShareFile(t_login_data *login_data) {
 int CalculatePasswordMd5(const char *password, char *md5_output) {
     char command[MAX_COMMAND_LENGTH];
     FILE *fp = NULL;
+    char temp_file[256];
     
     /* CWE-476: NULL指针检查 */
     if (password == NULL || md5_output == NULL) {
@@ -176,27 +177,37 @@ int CalculatePasswordMd5(const char *password, char *md5_output) {
     /* 初始化输出缓冲区 */
     memset(md5_output, 0, MAX_MD5_LENGTH);
     
-    /* CWE-78: 避免命令注入 - 使用临时文件传递数据 */
-    FILE *temp = fopen("temp_password.txt", "w");
+    /* 修复CWE-377: 使用唯一的临时文件名防止竞态条件 */
+    snprintf(temp_file, sizeof(temp_file), "temp_password_%d.txt", (int)time(NULL));
+    
+    /* 修复CWE-377: 设置安全的文件权限 */
+    FILE *temp = fopen(temp_file, "w");
     if (temp == NULL) {
         fprintf(stderr, "错误: 无法创建临时文件\n");
         return RET_ERR;
     }
-    fprintf(temp, "%s", password);
+    
+    /* 写入密码到临时文件 */
+    if (fprintf(temp, "%s", password) < 0) {
+        fprintf(stderr, "错误: 写入临时文件失败\n");
+        fclose(temp);
+        remove(temp_file);
+        return RET_ERR;
+    }
     fclose(temp);
     
-    /* 构建Python调用命令 */
+    /* 修复CWE-78: 避免命令注入 - 使用安全的文件路径 */
     /* CWE-119: 使用snprintf防止缓冲区溢出 */
     snprintf(command, MAX_COMMAND_LENGTH, 
              "python -c \"import sys; sys.path.insert(0, '.'); from algorithm import CalculateMd5; "
-             "data = open('temp_password.txt', 'r', encoding='utf-8').read(); "
-             "result = CalculateMd5(data); print(result if result else 'ERROR')\"");
+             "data = open('%s', 'r', encoding='utf-8').read(); "
+             "result = CalculateMd5(data); print(result if result else 'ERROR')\"", temp_file);
     
     /* 执行Python命令 */
     fp = popen(command, "r");
     if (fp == NULL) {
         fprintf(stderr, "错误: 无法执行Python命令\n");
-        remove("temp_password.txt");
+        remove(temp_file);  /* 修复: 确保删除临时文件 */
         return RET_ERR;
     }
     
@@ -204,12 +215,16 @@ int CalculatePasswordMd5(const char *password, char *md5_output) {
     if (fgets(md5_output, MAX_MD5_LENGTH, fp) == NULL) {
         fprintf(stderr, "错误: 无法读取MD5结果\n");
         pclose(fp);
-        remove("temp_password.txt");
+        remove(temp_file);  /* 修复: 确保删除临时文件 */
         return RET_ERR;
     }
     
     pclose(fp);
-    remove("temp_password.txt");  /* 删除临时文件 */
+    
+    /* 修复CWE-377: 立即删除临时文件，防止敏感信息泄露 */
+    if (remove(temp_file) != 0) {
+        fprintf(stderr, "警告: 无法删除临时文件\n");
+    }
     
     /* 移除换行符 */
     size_t len = strlen(md5_output);

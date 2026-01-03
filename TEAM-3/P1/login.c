@@ -63,6 +63,7 @@ t_login_data* ReadFromShareFile(const char* filename) {
                 char* value_end = strrchr(value_start, '"');
                 if (value_end) {
                     int len = value_end - value_start;
+                    if (len >= MAX_LENGTH) len = MAX_LENGTH - 1;
                     strncpy(data->pre_user_name, value_start, len);
                     data->pre_user_name[len] = '\0';
                 }
@@ -75,6 +76,7 @@ t_login_data* ReadFromShareFile(const char* filename) {
                 char* value_end = strrchr(value_start, '"');
                 if (value_end) {
                     int len = value_end - value_start;
+                    if (len >= MAX_LENGTH) len = MAX_LENGTH - 1;
                     strncpy(data->pre_user_psw, value_start, len);
                     data->pre_user_psw[len] = '\0';
                 }
@@ -87,6 +89,7 @@ t_login_data* ReadFromShareFile(const char* filename) {
                 char* value_end = strrchr(value_start, '"');
                 if (value_end) {
                     int len = value_end - value_start;
+                    if (len >= MAX_LENGTH) len = MAX_LENGTH - 1;
                     strncpy(data->pre_cookie, value_start, len);
                     data->pre_cookie[len] = '\0';
                 }
@@ -106,31 +109,54 @@ t_login_data* ReadFromShareFile(const char* filename) {
  * 功能: 调用Python的algorithm.py中的MD5算法计算密码哈希
  */
 char* CalculateMD5WithPython(const char* password) {
-    char command[MAX_LENGTH * 2];
+    char command[MAX_LENGTH * 4];
+    char escaped_password[MAX_LENGTH * 2];
     char* result = (char*)malloc(33); // MD5长度为32+结尾符
     
     if (result == NULL) {
         return NULL;
     }
 
+    // 转义密码中的特殊字符防止命令注入
+    int j = 0;
+    for (int i = 0; password[i] != '\0' && j < sizeof(escaped_password) - 2; i++) {
+        if (password[i] == '\'' || password[i] == '\"' || password[i] == '\\' || 
+            password[i] == '$' || password[i] == '`' || password[i] == '!' || password[i] == '\n') {
+            escaped_password[j++] = '\\';
+        }
+        escaped_password[j++] = password[i];
+    }
+    escaped_password[j] = '\0';
+
+    // 使用更安全的方式：通过临时文件传递密码
+    FILE* temp_fp = fopen("temp_psw.txt", "w");
+    if (temp_fp == NULL) {
+        free(result);
+        return NULL;
+    }
+    fprintf(temp_fp, "%s", password);
+    fclose(temp_fp);
+
     // 构造Python命令调用algorithm.py的MD5函数
     snprintf(command, sizeof(command), 
-             "python -c \"import sys; sys.path.append('.'); from algorithm import CalculateMD5; print(CalculateMD5('%s'), end='')\"",
-             password);
+             "python -c \"import sys; sys.path.append('.'); from algorithm import CalculateMD5; f=open('temp_psw.txt','r'); print(CalculateMD5(f.read()), end=''); f.close()\"");
 
     FILE* pipe = popen(command, "r");
     if (pipe == NULL) {
         free(result);
+        remove("temp_psw.txt");
         return NULL;
     }
 
     if (fgets(result, 33, pipe) == NULL) {
-        fclose(pipe);
+        pclose(pipe);
         free(result);
+        remove("temp_psw.txt");
         return NULL;
     }
 
     pclose(pipe);
+    remove("temp_psw.txt");
     return result;
 }
 

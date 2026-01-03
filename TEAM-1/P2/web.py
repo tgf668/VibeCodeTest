@@ -44,7 +44,8 @@ def ReceiveRemoteData():
                 return {
                     "pre_user_name": pre_user_name,
                     "pre_user_psw": pre_user_psw,
-                    "pre_cookie_info": pre_cookie_info
+                    "pre_cookie_info": pre_cookie_info,
+                    "pre_user_ip": addr[0]
                 }
             except json.JSONDecodeError:
                 print("Error: Invalid JSON data")
@@ -81,6 +82,20 @@ def ValidateUserData(pre_user_name, pre_user_psw, pre_cookie_info):
         return "cookie错误"
 
     return "OK"
+
+def WriteToShareFile(data):
+    """
+    功能: 将接收到的数据写入 share.txt
+    传入值: data (dict)
+    """
+    try:
+        with open('share.txt', 'w') as f:
+            f.write(f"{data.get('pre_user_name', '')}\n")
+            f.write(f"{data.get('pre_user_psw', '')}\n")
+            f.write(f"{data.get('pre_cookie_info', '')}\n")
+            f.write(f"{data.get('pre_user_ip', '')}\n")
+    except Exception as e:
+        print(f"Error writing to share.txt: {e}")
 
 def LocalTestServer():
     """
@@ -182,4 +197,13 @@ def LocalTestServer():
             client_socket.close()
 
 if __name__ == "__main__":
-    LocalTestServer()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "receive":
+        data = ReceiveRemoteData()
+        if data:
+            WriteToShareFile(data)
+            print("Data received and written to share.txt")
+        else:
+            print("Failed to receive data")
+    else:
+        LocalTestServer()

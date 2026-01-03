@@ -236,6 +236,224 @@ def DecryptPasswordWithRSA(encrypted_password, private_key_file='key.txt'):
 
 # ============= 测试函数 =============
 
+def TestFromConsole():
+    """
+    传入值: 无 (从控制台接收)
+    返回值: NULL
+    
+    功能: 从控制台接收数据，分别测试MD5、SHA1、RSA算法
+    """
+    print("\n" + "="*60)
+    print("算法测试系统 - 控制台模式")
+    print("="*60 + "\n")
+    
+    # 从控制台接收测试数据
+    print("请输入要测试的数据:")
+    test_data = input("> ")
+    
+    if not test_data:
+        print("错误：未输入数据")
+        return
+    
+    print("\n" + "-"*60)
+    print("开始测试...")
+    print("-"*60 + "\n")
+    
+    # 测试结果列表
+    results = []
+    
+    # 测试 MD5 算法
+    try:
+        md5_hash = CalculateMD5(test_data)
+        if md5_hash and len(md5_hash) == 32:
+            # 验证 MD5 是否能正确验证
+            if VerifyMD5(test_data, md5_hash):
+                results.append(("MD5算法", "OK", md5_hash))
+            else:
+                results.append(("MD5算法", "ERROR", "验证失败"))
+        else:
+            results.append(("MD5算法", "ERROR", "哈希值生成失败"))
+    except Exception as e:
+        results.append(("MD5算法", "ERROR", str(e)))
+    
+    # 测试 SHA1 算法
+    try:
+        sha1_hash = CalculateSHA1(test_data)
+        if sha1_hash and len(sha1_hash) == 40:
+            # 验证 SHA1 是否能正确验证
+            if VerifySHA1(test_data, sha1_hash):
+                results.append(("SHA1算法", "OK", sha1_hash))
+            else:
+                results.append(("SHA1算法", "ERROR", "验证失败"))
+        else:
+            results.append(("SHA1算法", "ERROR", "哈希值生成失败"))
+    except Exception as e:
+        results.append(("SHA1算法", "ERROR", str(e)))
+    
+    # 测试 RSA 算法
+    try:
+        # 生成测试用的RSA密钥对
+        print("正在生成RSA密钥对...")
+    import sys
+    
+    # 检查命令行参数
+    if len(sys.argv) > 1:
+        if sys.argv[1] == 'test':
+            # 运行完整测试
+            RunAlgorithmTests()
+        elif sys.argv[1] == 'console':
+            # 控制台输入测试
+            TestFromConsole()
+        elif sys.argv[1] == 'sample':
+            # 样本数据测试
+            TestWithSampleData()
+        else:
+            print(f"未知参数: {sys.argv[1]}")
+            print("可用参数: test, console, sample")
+    else:
+        # 默认启动交互式菜单
+        InteractiveTestMenupublic_key = GenerateRSAKeyPair(2048)
+        
+        # 加密
+        encrypted_data = RSAEncrypt(test_data, public_key)
+        if encrypted_data:
+            # 解密
+            decrypted_data = RSADecrypt(encrypted_data, private_key)
+            
+            # 验证解密后的数据是否与原数据一致
+            if decrypted_data == test_data:
+                results.append(("RSA算法", "OK", f"加密长度: {len(encrypted_data)}"))
+            else:
+                results.append(("RSA算法", "ERROR", "解密数据不匹配"))
+        else:
+            results.append(("RSA算法", "ERROR", "加密失败"))
+    except Exception as e:
+        results.append(("RSA算法", "ERROR", str(e)))
+    
+    # 打印测试结果
+    print("\n" + "="*60)
+    print("测试结果")
+    print("="*60 + "\n")
+    
+    for algo_name, status, detail in results:
+        print(f"{algo_name}，结果为{status}")
+        if status == "OK":
+            print(f"  详情: {detail}")
+        else:
+            print(f"  错误信息: {detail}")
+        print()
+    
+    # 统计
+    ok_count = sum(1 for _, status, _ in results if status == "OK")
+    error_count = sum(1 for _, status, _ in results if status == "ERROR")
+    
+    print("-"*60)
+    print(f"总计: {len(results)} 个测试")
+    print(f"成功: {ok_count} 个 | 失败: {error_count} 个")
+    print("-"*60 + "\n")
+
+
+def TestWithSampleData():
+    """
+    传入值: 无
+    返回值: NULL
+    
+    功能: 使用预定义的样本数据测试所有算法
+    """
+    print("\n" + "="*60)
+    print("算法测试系统 - 样本数据模式")
+    print("="*60 + "\n")
+    
+    # 测试样本数据
+    sample_data_list = [
+        "Hello123",
+        "Test@2026",
+        "MyPassword",
+        "123456789",
+        "短文本"
+    ]
+    
+    for idx, test_data in enumerate(sample_data_list, 1):
+        print(f"\n【测试 {idx}】测试数据: {test_data}")
+        print("-"*60)
+        
+        # 测试 MD5
+        try:
+            md5_hash = CalculateMD5(test_data)
+            if VerifyMD5(test_data, md5_hash):
+                print(f"MD5算法，结果为OK")
+            else:
+                print(f"MD5算法，结果为ERROR")
+        except Exception as e:
+            print(f"MD5算法，结果为ERROR (异常: {e})")
+        
+        # 测试 SHA1
+        try:
+            sha1_hash = CalculateSHA1(test_data)
+            if VerifySHA1(test_data, sha1_hash):
+                print(f"SHA1算法，结果为OK")
+            else:
+                print(f"SHA1算法，结果为ERROR")
+        except Exception as e:
+            print(f"SHA1算法，结果为ERROR (异常: {e})")
+        
+        # 测试 RSA
+        try:
+            private_key, public_key = GenerateRSAKeyPair(2048)
+            encrypted = RSAEncrypt(test_data, public_key)
+            decrypted = RSADecrypt(encrypted, private_key)
+            
+            if decrypted == test_data:
+                print(f"RSA算法，结果为OK")
+            else:
+                print(f"RSA算法，结果为ERROR")
+        except Exception as e:
+            print(f"RSA算法，结果为ERROR (异常: {e})")
+    
+    print("\n" + "="*60)
+    print("所有样本数据测试完成")
+    print("="*60 + "\n")
+
+
+def InteractiveTestMenu():
+    """
+    传入值: 无
+    返回值: NULL
+    
+    功能: 交互式测试菜单，允许用户选择测试模式
+    """
+    while True:
+        print("\n" + "="*60)
+        print("算法测试系统 - 主菜单")
+        print("="*60)
+        print("\n请选择测试模式:")
+        print("  1. 从控制台输入数据测试")
+        print("  2. 使用样本数据批量测试")
+        print("  3. 运行完整算法测试")
+        print("  0. 退出")
+        print()
+        
+        choice = input("请输入选项 (0-3): ").strip()
+        
+        if choice == "1":
+            TestFromConsole()
+        elif choice == "2":
+            TestWithSampleData()
+        elif choice == "3":
+            RunAlgorithmTests()
+        elif choice == "0":
+            print("\n退出测试系统。")
+            break
+        else:
+            print("\n错误：无效的选项，请重新选择。")
+        
+        # 询问是否继续
+        if choice in ["1", "2", "3"]:
+            continue_test = input("\n是否继续测试? (y/n): ").strip().lower()
+            if continue_test != 'y' and continue_test != 'yes':
+                print("\n退出测试系统。")
+                break
+
 def RunAlgorithmTests():
     """
     传入值: 无

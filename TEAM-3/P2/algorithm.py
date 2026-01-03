@@ -348,6 +348,158 @@ def TestAlgorithms():
     print("="*70 + "\n")
 
 
+def TestAlgorithmsWithInput():
+    """
+    从控制台接收数据并测试所有算法
+    传入值：None（从控制台输入）
+    返回值：None（打印测试结果）
+    """
+    print("\n" + "="*70)
+    print("算法交互式测试程序".center(70))
+    print("="*70 + "\n")
+    
+    # 从控制台接收测试数据
+    print("请输入要测试的数据：")
+    test_input = input("> ")
+    
+    if not test_input:
+        print("❌ 输入为空，测试终止")
+        return
+    
+    print(f"\n测试数据: {test_input}")
+    print("-" * 70 + "\n")
+    
+    # 存储测试结果
+    test_results = []
+    
+    # ==================== 测试MD5算法 ====================
+    try:
+        md5_result = CalculateMd5(test_input)
+        if md5_result and len(md5_result) == 32:
+            test_results.append(("MD5算法", "OK"))
+            print(f"MD5哈希值: {md5_result}")
+        else:
+            test_results.append(("MD5算法", "ERROR"))
+    except Exception as e:
+        test_results.append(("MD5算法", "ERROR"))
+        print(f"MD5错误: {str(e)}")
+    
+    # ==================== 测试SHA1算法 ====================
+    try:
+        sha1_result = CalculateSha1(test_input)
+        if sha1_result and len(sha1_result) == 40:
+            test_results.append(("SHA1算法", "OK"))
+            print(f"SHA1哈希值: {sha1_result}")
+        else:
+            test_results.append(("SHA1算法", "ERROR"))
+    except Exception as e:
+        test_results.append(("SHA1算法", "ERROR"))
+        print(f"SHA1错误: {str(e)}")
+    
+    # ==================== 测试RSA算法 ====================
+    try:
+        print("\n正在测试RSA算法...")
+        
+        # 尝试从文件导入私钥，如果不存在则生成新密钥对
+        private_key = ImportRsaPrivateKey('key.txt')
+        
+        if private_key is None:
+            print("私钥文件不存在，正在生成新的RSA密钥对...")
+            private_key, public_key = GenerateRsaKeyPair()
+            if private_key and public_key:
+                ExportRsaPrivateKey(private_key, 'key.txt')
+                print("✅ RSA密钥对生成成功")
+            else:
+                raise Exception("密钥对生成失败")
+        else:
+            public_key = private_key.publickey()
+            print("✅ 从文件加载RSA私钥成功")
+        
+        # RSA加密测试
+        encrypted_rsa = RsaEncrypt(test_input, public_key)
+        if not encrypted_rsa:
+            raise Exception("RSA加密失败")
+        
+        # RSA解密测试
+        decrypted_rsa = RsaDecrypt(encrypted_rsa, private_key)
+        if not decrypted_rsa:
+            raise Exception("RSA解密失败")
+        
+        # 验证加密解密是否正确
+        if decrypted_rsa == test_input:
+            test_results.append(("RSA算法", "OK"))
+            print(f"RSA加密结果: {encrypted_rsa[:60]}...")
+            print(f"RSA解密结果: {decrypted_rsa}")
+            print("✅ RSA加密解密验证成功")
+        else:
+            test_results.append(("RSA算法", "ERROR"))
+            print("❌ RSA解密结果与原始数据不匹配")
+            
+    except Exception as e:
+        test_results.append(("RSA算法", "ERROR"))
+        print(f"RSA错误: {str(e)}")
+    
+    # ==================== 测试AES-ECB算法 ====================
+    try:
+        print("\n正在测试AES-ECB算法...")
+        
+        # 使用固定密钥进行测试
+        aes_key = "test_secret_key1"  # 16字节密钥
+        
+        # AES加密测试
+        encrypted_aes = AesEncryptEcb(test_input, aes_key)
+        if not encrypted_aes:
+            raise Exception("AES加密失败")
+        
+        # AES解密测试
+        decrypted_aes = AesDecryptEcb(encrypted_aes, aes_key)
+        if not decrypted_aes:
+            raise Exception("AES解密失败")
+        
+        # 验证加密解密是否正确
+        if decrypted_aes == test_input:
+            test_results.append(("AES-ECB算法", "OK"))
+            print(f"AES加密结果: {encrypted_aes}")
+            print(f"AES解密结果: {decrypted_aes}")
+            print("✅ AES-ECB加密解密验证成功")
+        else:
+            test_results.append(("AES-ECB算法", "ERROR"))
+            print("❌ AES解密结果与原始数据不匹配")
+            
+    except Exception as e:
+        test_results.append(("AES-ECB算法", "ERROR"))
+        print(f"AES错误: {str(e)}")
+    
+    # ==================== 打印测试结果摘要 ====================
+    print("\n" + "="*70)
+    print("测试结果摘要".center(70))
+    print("="*70 + "\n")
+    
+    for algorithm, result in test_results:
+        status_symbol = "✅" if result == "OK" else "❌"
+        print(f"{status_symbol} {algorithm}，结果为{result}")
+    
+    # 统计成功和失败的数量
+    success_count = sum(1 for _, result in test_results if result == "OK")
+    total_count = len(test_results)
+    
+    print("\n" + "-"*70)
+    print(f"总计: {total_count} 个算法 | 成功: {success_count} | 失败: {total_count - success_count}")
+    print("="*70 + "\n")
+
+
 if __name__ == '__main__':
     # 运行测试
-    TestAlgorithms()
+    print("请选择测试模式：")
+    print("1. 自动测试（使用预设数据）")
+    print("2. 交互测试（手动输入数据）")
+    
+    choice = input("\n请输入选择 (1/2): ").strip()
+    
+    if choice == '1':
+        TestAlgorithms()
+    elif choice == '2':
+        TestAlgorithmsWithInput()
+    else:
+        print("无效选择，运行自动测试...")
+        TestAlgorithms()

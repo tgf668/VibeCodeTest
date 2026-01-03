@@ -60,6 +60,7 @@ def ValidateUserCredentials(pre_user_name, pre_user_psw):
         
         # 遍历Excel查找匹配的用户
         # 假设Excel格式：第一行是标题，第一列是用户名，第二列是MD5密码，第三列是IP，第四列是最后登录时间
+        found_user = None
         for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=False), start=2):
             stored_username = row[0].value
             stored_password_md5 = row[1].value
@@ -68,9 +69,14 @@ def ValidateUserCredentials(pre_user_name, pre_user_psw):
             # 比较用户名和MD5密码
             if stored_username == pre_user_name and stored_password_md5 == psw_md5:
                 print(f"用户验证成功: {pre_user_name}")
-                return True, stored_ip, row_idx
+                found_user = (True, stored_ip, row_idx)
+                break
         
+        # 确保关闭workbook
         workbook.close()
+        
+        if found_user:
+            return found_user
         return False, None, "用户名或密码错误"
     
     except Exception as e:
@@ -159,13 +165,12 @@ def ProcessLogin():
         # 3. 更新登录信息
         print("【步骤3】更新登录信息...")
         
-        # 尝试从cookie中提取IP（简化处理，实际应该从HTTP请求获取）
-        login_ip = "127.0.0.1"  # 默认IP
-        if 'ip=' in pre_cookie:
-            try:
-                login_ip = pre_cookie.split('ip=')[1].split(';')[0]
-            except:
-                pass
+        # 从登录数据中获取真实IP（由web.py从HTTP请求中提取）
+        login_ip = login_data.get('pre_client_ip', '0.0.0.0')
+        if not login_ip or login_ip == '':
+            login_ip = "127.0.0.1"  # 默认IP
+        
+        print(f"登录IP: {login_ip}")
         
         update_success = UpdateLoginInfo(row_or_msg, login_ip)
         

@@ -8,7 +8,7 @@ def ReceiveRemoteData():
     返回值: 包含用户信息的字典 (pre_user_name, pre_user_psw, pre_cookie_info)，如果失败返回 None
     """
     # 目标IP地址
-    TARGET_IP = "192.114.514"
+    TARGET_IP = "127.0.0.1"
     # 监听端口
     PORT = 8080
     
@@ -29,7 +29,7 @@ def ReceiveRemoteData():
         # 建立连接
         client_socket, addr = server_socket.accept()
         
-        # 简单的IP验证 (注意：192.114.514 不是有效的IPv4地址，此处仅为逻辑演示)
+        # 简单的IP验证
         if addr[0] == TARGET_IP:
             # 接收数据
             data = client_socket.recv(1024).decode('utf-8')
@@ -40,6 +40,15 @@ def ReceiveRemoteData():
                 pre_user_name = json_data.get('username')
                 pre_user_psw = json_data.get('password')
                 pre_cookie_info = json_data.get('cookie')
+
+                # 数据验证
+                validation_result = ValidateUserData(pre_user_name, pre_user_psw, pre_cookie_info)
+                if validation_result != "OK":
+                    print(f"Validation failed: {validation_result}")
+                    # 可以选择在这里返回错误，或者记录错误
+                    # 为了配合 main.c 的流程，我们可能需要一种方式传递错误
+                    # 这里我们返回一个包含错误的字典，或者直接返回 None
+                    return {"error": validation_result}
                 
                 return {
                     "pre_user_name": pre_user_name,
@@ -200,9 +209,11 @@ if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "receive":
         data = ReceiveRemoteData()
-        if data:
+        if data and "error" not in data:
             WriteToShareFile(data)
             print("Data received and written to share.txt")
+        elif data and "error" in data:
+            print(f"Data validation error: {data['error']}")
         else:
             print("Failed to receive data")
     else:

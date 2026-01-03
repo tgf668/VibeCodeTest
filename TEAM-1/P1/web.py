@@ -14,6 +14,21 @@ SERVER_PORT = 5000
 SHARE_FILE_PATH = 'share.txt'
 
 
+def GetClientIp():
+    """
+    获取客户端真实IP地址
+    传入值: 无
+    返回值: str - 客户端IP地址
+    """
+    # 尝试从代理头获取真实IP
+    if request.headers.get('X-Forwarded-For'):
+        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    elif request.headers.get('X-Real-IP'):
+        return request.headers.get('X-Real-IP')
+    else:
+        return request.remote_addr or '0.0.0.0'
+
+
 def ReceiveLoginData():
     """
     从前端接收登录数据
@@ -32,6 +47,9 @@ def ReceiveLoginData():
         pre_user_psw = data.get('password', '')
         pre_cookie = data.get('cookie', '')
         
+        # 获取客户端真实IP
+        client_ip = GetClientIp()
+        
         # 验证必要字段
         if not pre_user_name or not pre_user_psw:
             return None
@@ -39,7 +57,8 @@ def ReceiveLoginData():
         login_data = {
             'pre_user_name': pre_user_name,
             'pre_user_psw': pre_user_psw,
-            'pre_cookie': pre_cookie
+            'pre_cookie': pre_cookie,
+            'pre_client_ip': client_ip  # 添加真实IP
         }
         
         return login_data
@@ -74,17 +93,21 @@ def ValidateLoginData(login_data):
     pre_user_psw = login_data.get('pre_user_psw', '')
     pre_cookie = login_data.get('pre_cookie', '')
     
-    # 验证用户名长度不超过8位
-    if len(pre_user_name) > 8:
+    # 验证用户名长度：1-8位
+    if len(pre_user_name) == 0 or len(pre_user_name) > 8:
         return False, "长度违法"
     
     # 验证密码长度大于6位但不超过12位
     if len(pre_user_psw) <= 6 or len(pre_user_psw) > 12:
         return False, "长度违法"
     
-    # 验证cookie中包含flag标签
-    if 'flag' not in pre_cookie:
+    # 加强Cookie验证：检查flag键值对格式
+    if 'flag=' not in pre_cookie:
         return False, "cookie错误"
+    
+    # 验证用户名只包含字母数字和下划线（防止注入）
+    if not pre_user_name.replace('_', '').isalnum():
+        return False, "用户名格式错误"
     
     return True, ""
 

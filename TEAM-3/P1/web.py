@@ -79,6 +79,31 @@ def ReadFromShareFile():
         return None
 
 
+def ValidateLoginData(pre_user_name, pre_user_psw, pre_cookie):
+    """
+    传入值: pre_user_name (str) - 用户名, pre_user_psw (str) - 密码, pre_cookie (str) - cookie信息
+    返回值: tuple - (is_valid (bool), error_message (str))
+    
+    功能: 验证登录数据的合法性
+         - 用户名长度不超过8位
+         - 密码长度大于6位但不超过12位
+         - cookie中必须包含flag标签
+    """
+    # 验证用户名长度
+    if len(pre_user_name) > 8:
+        return False, "长度违法"
+    
+    # 验证密码长度
+    if len(pre_user_psw) <= 6 or len(pre_user_psw) > 12:
+        return False, "长度违法"
+    
+    # 验证cookie中是否包含flag标签
+    if 'flag' not in pre_cookie:
+        return False, "cookie错误"
+    
+    return True, "验证通过"
+
+
 def SendResponse(status, message):
     """
     传入值: status (str) - 状态码, message (str) - 响应消息
@@ -107,9 +132,19 @@ def LoginHandler():
     if login_data is None:
         return SendResponse('ret_ERR', '接收数据失败')
     
+    # 验证登录数据
+    is_valid, error_message = ValidateLoginData(
+        login_data.get('pre_user_name', ''),
+        login_data.get('pre_user_psw', ''),
+        login_data.get('pre_cookie', '')
+    )
+    
+    if not is_valid:
+        return SendResponse('ret_ERR', error_message)
+    
     # 这里后续会调用 main.c 中的验证逻辑
-    # 目前先返回接收成功的消息
-    return SendResponse('ret_OK', '数据接收成功')
+    # 目前先返回验证成功的消息
+    return SendResponse('ret_OK', '数据验证成功')
 
 
 def StartServer():

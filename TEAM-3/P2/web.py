@@ -17,6 +17,49 @@ app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-key-change-in
 # 全局数据交换文件路径
 SHARE_FILE_PATH = 'share.txt'
 
+# 验证规则常量
+MAX_USERNAME_LENGTH = 8
+MIN_PASSWORD_LENGTH = 6
+MAX_PASSWORD_LENGTH = 12
+REQUIRED_COOKIE_FLAG = 'flag'
+
+
+def ValidateLoginData(pre_user_name, pre_user_psw, pre_cookie):
+    """
+    验证登录数据的合法性
+    传入值：pre_user_name (str) - 用户名
+            pre_user_psw (str) - 密码
+            pre_cookie (str) - cookie信息
+    返回值：dict - 包含ret_status和ret_message，验证成功返回{'ret_status': 'OK'}
+                   验证失败返回{'ret_status': 'ERR', 'ret_message': '错误信息'}
+    """
+    # 验证用户名长度不超过8位
+    if len(pre_user_name) > MAX_USERNAME_LENGTH:
+        return {
+            'ret_status': 'ERR',
+            'ret_message': '长度违法'
+        }
+    
+    # 验证密码长度大于6位但不超过12位
+    if len(pre_user_psw) <= MIN_PASSWORD_LENGTH or len(pre_user_psw) > MAX_PASSWORD_LENGTH:
+        return {
+            'ret_status': 'ERR',
+            'ret_message': '长度违法'
+        }
+    
+    # 验证cookie中包含flag标签
+    # 安全检查：防止注入攻击，使用简单的包含检查
+    if REQUIRED_COOKIE_FLAG not in pre_cookie:
+        return {
+            'ret_status': 'ERR',
+            'ret_message': 'cookie错误'
+        }
+    
+    # 所有验证通过
+    return {
+        'ret_status': 'OK'
+    }
+
 
 def ReceiveLoginData():
     """
@@ -47,16 +90,6 @@ def ReceiveLoginData():
         
         # 基本输入验证：检查是否为空
         if not pre_user_name or not pre_user_psw:
-            return None
-        
-        # 输入长度限制，防止缓冲区问题
-        MAX_USERNAME_LENGTH = 100
-        MAX_PASSWORD_LENGTH = 200
-        MAX_COOKIE_LENGTH = 500
-        
-        if (len(pre_user_name) > MAX_USERNAME_LENGTH or 
-            len(pre_user_psw) > MAX_PASSWORD_LENGTH or 
-            len(pre_cookie) > MAX_COOKIE_LENGTH):
             return None
         
         # 返回处理后的数据字典
@@ -118,6 +151,17 @@ def LoginEndpoint():
             'ret_status': 'ERR',
             'ret_message': 'Invalid request data'
         }), 400
+    
+    # 验证登录数据的合法性
+    validation_result = ValidateLoginData(
+        login_data['pre_user_name'],
+        login_data['pre_user_psw'],
+        login_data['pre_cookie']
+    )
+    
+    # 如果验证失败，返回相应的错误信息
+    if validation_result['ret_status'] == 'ERR':
+        return jsonify(validation_result), 400
     
     # 将数据写入共享文件供其他模块使用
     write_success = WriteToShareFile(login_data)

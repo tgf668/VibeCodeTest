@@ -9,7 +9,7 @@ from flask import Flask, request, render_template_string, make_response
 import unittest
 
 # 常量定义
-SERVER_IP = "192.114.514"
+SERVER_IP = "192.168.1.114"
 SERVER_PORT = 8080
 BUFFER_SIZE = 4096
 
@@ -92,9 +92,9 @@ def ValidateLoginData(pre_user_name, pre_user_psw, pre_cookie):
             验证通过返回 (True, "ret_OK")
             验证失败返回 (False, 错误信息)
     """
-    # 验证用户名长度
+    # 验证用户名长度（必须在1-8位之间）
     user_name_length = len(pre_user_name)
-    if user_name_length > MAX_USER_NAME_LENGTH:
+    if user_name_length == 0 or user_name_length > MAX_USER_NAME_LENGTH:
         ret_message = "长度违法"
         return (False, ret_message)
     

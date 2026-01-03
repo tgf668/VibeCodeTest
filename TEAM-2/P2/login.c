@@ -71,10 +71,12 @@ int ReadShareData(t_login_info* login_info) {
                 char* end = strchr(ptr, '"');
                 if (end != NULL) {
                     int len = end - ptr;
-                    if (len < MAX_USERNAME_LENGTH) {
-                        strncpy(login_info->pre_user_name, ptr, len);
-                        login_info->pre_user_name[len] = '\0';
+                    // 修复：确保不超过缓冲区大小
+                    if (len >= MAX_USERNAME_LENGTH) {
+                        len = MAX_USERNAME_LENGTH - 1;
                     }
+                    strncpy(login_info->pre_user_name, ptr, len);
+                    login_info->pre_user_name[len] = '\0';
                 }
             }
         }
@@ -90,10 +92,12 @@ int ReadShareData(t_login_info* login_info) {
                 char* end = strchr(ptr, '"');
                 if (end != NULL) {
                     int len = end - ptr;
-                    if (len < MAX_PASSWORD_LENGTH) {
-                        strncpy(login_info->pre_user_psw, ptr, len);
-                        login_info->pre_user_psw[len] = '\0';
+                    // 修复：确保不超过缓冲区大小
+                    if (len >= MAX_PASSWORD_LENGTH) {
+                        len = MAX_PASSWORD_LENGTH - 1;
                     }
+                    strncpy(login_info->pre_user_psw, ptr, len);
+                    login_info->pre_user_psw[len] = '\0';
                 }
             }
         }
@@ -111,6 +115,30 @@ int ReadShareData(t_login_info* login_info) {
 
 
 /**
+ * 转义字符串中的特殊字符以防止命令注入
+ * 传入值: 
+ *   input - 输入字符串
+ *   output - 输出缓冲区
+ *   max_len - 输出缓冲区最大长度
+ * 返回值: int - 成功返回SUCCESS，失败返回FAILURE
+ */
+int EscapeString(const char* input, char* output, int max_len) {
+    int j = 0;
+    for (int i = 0; input[i] != '\0' && j < max_len - 2; i++) {
+        // 转义单引号、反斜杠等危险字符
+        if (input[i] == '\'' || input[i] == '\\' || input[i] == '"' || 
+            input[i] == ';' || input[i] == '&' || input[i] == '|' ||
+            input[i] == '$' || input[i] == '`') {
+            output[j++] = '\\';
+            if (j >= max_len - 1) break;
+        }
+        output[j++] = input[i];
+    }
+    output[j] = '\0';
+    return SUCCESS;
+}
+
+/**
  * 调用Python算法计算MD5哈希
  * 传入值: 
  *   input_data - 需要计算哈希的数据
@@ -118,13 +146,17 @@ int ReadShareData(t_login_info* login_info) {
  * 返回值: int - 成功返回SUCCESS，失败返回FAILURE
  */
 int CalculateMD5Hash(const char* input_data, char* output_hash) {
-    char command[1024];
+    char command[2048];
+    char escaped_data[512];
     FILE* fp;
+    
+    // 转义输入数据以防止命令注入
+    EscapeString(input_data, escaped_data, sizeof(escaped_data));
     
     // 构建Python命令
     snprintf(command, sizeof(command), 
              "python -c \"from algorithm import CalculateMD5; print(CalculateMD5('%s'), end='')\"",
-             input_data);
+             escaped_data);
     
     // 执行Python命令
     fp = popen(command, "r");

@@ -202,16 +202,16 @@ def CreateSampleDataFile():
         sheet['C1'] = "最后登录时间"
         sheet['D1'] = "最后登录IP"
         
-        # 添加示例用户 (密码为 "password123" 的MD5)
-        # MD5("password123") = 482c811da5d5b4bc6d497ffa98491e38
+        # 添加示例用户 (密码为 "pass123" 的MD5 - 7位密码符合要求)
+        # MD5("pass123") = 32250170a0dca92d53ec9624f336ca24
         sheet['A2'] = "admin"
-        sheet['B2'] = "482c811da5d5b4bc6d497ffa98491e38"
+        sheet['B2'] = "32250170a0dca92d53ec9624f336ca24"
         sheet['C2'] = ""
         sheet['D2'] = ""
         
-        # 添加第二个示例用户 (密码为 "test1234" 的MD5)
+        # 添加第二个示例用户 (密码为 "test1234" 的MD5 - 8位密码符合要求)
         # MD5("test1234") = 16d7a4fca7442dda3ad93c9a726597e4
-        sheet['A3'] = "testuser"
+        sheet['A3'] = "test"
         sheet['B3'] = "16d7a4fca7442dda3ad93c9a726597e4"
         sheet['C3'] = ""
         sheet['D3'] = ""

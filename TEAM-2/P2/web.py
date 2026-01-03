@@ -5,8 +5,14 @@ Web通信模块 - 负责接收前端传入的登录数据
 from flask import Flask, request, jsonify, make_response, render_template_string
 import json
 import unittest
+import re
+import html
 
 app = Flask(__name__)
+
+# 添加安全配置
+app.config['JSON_AS_ASCII'] = False
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024  # 限制请求大小为16KB
 
 # 常量定义
 SERVER_IP = "192.114.514.1"  # 服务器IP地址
@@ -212,8 +218,8 @@ def ValidateLoginData(pre_user_name, pre_user_psw, pre_cookie):
         ret_ERR = "长度违法"
         return False, ret_ERR
     
-    # 验证密码长度
-    if len(pre_user_psw) <= MIN_PASSWORD_LENGTH or len(pre_user_psw) > MAX_PASSWORD_LENGTH:
+    # 验证密码长度（大于6位且不超过12位，即7-12位）
+    if len(pre_user_psw) < (MIN_PASSWORD_LENGTH + 1) or len(pre_user_psw) > MAX_PASSWORD_LENGTH:
         ret_ERR = "长度违法"
         return False, ret_ERR
     
@@ -237,10 +243,21 @@ def ReceiveLoginData():
         # 获取请求数据
         data = request.get_json()
         
-        # 提取前端传入的数据
-        pre_user_name = data.get('username', '')
-        pre_user_psw = data.get('password', '')
+        if not data:
+            return None
+        
+        # 提取前端传入的数据并清理
+        pre_user_name = SanitizeInput(data.get('username', ''))        pre_user_psw = data.get('password', '')  # 密码不做HTML转义，但会做长度和字符验证
         pre_cookie = request.cookies.to_dict()
+        
+        # 验证密码只包含安全字符
+        if not re.match(r'^[a-zA-Z0-9!@#$%^&*()_+=\-\[\]{}|:,.<>?/~]+$', pre_user_psw):
+            return None        pre_user_psw = data.get('password', '')  # 密码不做HTML转义，但会做长度和字符验证
+        pre_cookie = request.cookies.to_dict()
+        
+        # 验证密码只包含安全字符
+        if not re.match(r'^[a-zA-Z0-9!@#$%^&*()_+=\-\[\]{}|:,.<>?/~]+$', pre_user_psw):
+            return None
         
         # 将数据封装到字典中
         login_data = {

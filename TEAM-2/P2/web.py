@@ -10,6 +10,39 @@ app = Flask(__name__)
 # 常量定义
 SERVER_IP = "192.114.514.1"  # 服务器IP地址
 SERVER_PORT = 5000  # 服务器端口
+MAX_USERNAME_LENGTH = 8  # 用户名最大长度
+MIN_PASSWORD_LENGTH = 6  # 密码最小长度
+MAX_PASSWORD_LENGTH = 12  # 密码最大长度
+REQUIRED_COOKIE_FLAG = "flag"  # cookie中必需的标签
+
+def ValidateLoginData(pre_user_name, pre_user_psw, pre_cookie):
+    """
+    验证登录数据的合法性
+    传入值: 
+        pre_user_name (str) - 用户名
+        pre_user_psw (str) - 密码
+        pre_cookie (dict) - cookie信息
+    返回值: tuple - (是否合法: bool, 错误信息: str)
+    """
+    # 验证用户名长度
+    if len(pre_user_name) > MAX_USERNAME_LENGTH:
+        ret_ERR = "长度违法"
+        return False, ret_ERR
+    
+    # 验证密码长度
+    if len(pre_user_psw) <= MIN_PASSWORD_LENGTH or len(pre_user_psw) > MAX_PASSWORD_LENGTH:
+        ret_ERR = "长度违法"
+        return False, ret_ERR
+    
+    # 验证cookie中是否包含flag标签
+    if REQUIRED_COOKIE_FLAG not in pre_cookie:
+        ret_ERR = "cookie错误"
+        return False, ret_ERR
+    
+    # 验证通过
+    ret_OK = "验证成功"
+    return True, ret_OK
+
 
 def ReceiveLoginData():
     """
@@ -53,6 +86,19 @@ def HandleLoginRequest():
         return jsonify({
             'status': 'error',
             'message': '数据接收失败'
+        }), 400
+    
+    # 验证登录数据
+    is_valid, validation_message = ValidateLoginData(
+        login_data['pre_user_name'],
+        login_data['pre_user_psw'],
+        login_data['pre_cookie']
+    )
+    
+    if not is_valid:
+        return jsonify({
+            'status': 'error',
+            'message': validation_message
         }), 400
     
     # 将数据写入共享文件供其他模块使用

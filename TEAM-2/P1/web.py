@@ -72,3 +72,40 @@ def SendResponse(ret_status, ret_message):
     except Exception as e:
         print(f"发送响应失败: {e}")
         return False
+
+
+# 验证相关常量
+MAX_USER_NAME_LENGTH = 8
+MIN_PASSWORD_LENGTH = 6
+MAX_PASSWORD_LENGTH = 12
+COOKIE_FLAG_TAG = "flag"
+
+
+def ValidateLoginData(pre_user_name, pre_user_psw, pre_cookie):
+    """
+    传入值: pre_user_name - 用户名 (str)
+            pre_user_psw - 用户密码 (str)
+            pre_cookie - cookie信息 (str)
+    返回值: tuple - (验证结果 bool, 错误信息 str)
+            验证通过返回 (True, "ret_OK")
+            验证失败返回 (False, 错误信息)
+    """
+    # 验证用户名长度
+    user_name_length = len(pre_user_name)
+    if user_name_length > MAX_USER_NAME_LENGTH:
+        ret_message = "长度违法"
+        return (False, ret_message)
+    
+    # 验证密码长度
+    password_length = len(pre_user_psw)
+    if password_length <= MIN_PASSWORD_LENGTH or password_length > MAX_PASSWORD_LENGTH:
+        ret_message = "长度违法"
+        return (False, ret_message)
+    
+    # 验证cookie中是否包含flag标签
+    if COOKIE_FLAG_TAG not in pre_cookie:
+        ret_message = "cookie错误"
+        return (False, ret_message)
+    
+    ret_message = "ret_OK"
+    return (True, ret_message)
